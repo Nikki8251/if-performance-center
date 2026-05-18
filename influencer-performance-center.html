@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Influencer Performance Center</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f6fa;display:flex;min-height:100vh;color:#333}
+
+  /* ── Sidebar ── */
+  .sidebar{width:240px;min-width:240px;background:#fff;border-right:1px solid #e8eaf0;display:flex;flex-direction:column;transition:width .25s}
+  .sidebar.collapsed{width:56px;min-width:56px}
+  .sidebar-logo{padding:18px 16px;font-weight:700;font-size:15px;color:#1a56db;border-bottom:1px solid #e8eaf0;white-space:nowrap;overflow:hidden}
+  .sidebar-logo span{margin-left:8px}
+  .nav-section{padding:8px 0}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13.5px;color:#555;transition:background .15s;position:relative;white-space:nowrap;overflow:hidden}
+  .nav-item:hover{background:#f0f4ff;color:#1a56db}
+  .nav-item.active{background:#eef2ff;color:#1a56db;font-weight:600}
+  .nav-item .icon{width:18px;height:18px;flex-shrink:0;opacity:.7}
+  .nav-item.active .icon{opacity:1}
+  .nav-sub{padding-left:44px;font-size:13px;color:#666}
+  .nav-sub .nav-item{padding:7px 12px}
+  .nav-chevron{margin-left:auto;transition:transform .2s}
+  .nav-group.open .nav-chevron{transform:rotate(90deg)}
+  .nav-children{display:none}
+  .nav-group.open .nav-children{display:block}
+  .sidebar.collapsed .nav-item span,.sidebar.collapsed .nav-chevron,.sidebar.collapsed .sidebar-logo span{display:none}
+
+  /* ── Main ── */
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:#fff;border-bottom:1px solid #e8eaf0;padding:0 24px;height:56px;display:flex;align-items:center;gap:16px}
+  .topbar-toggle{cursor:pointer;padding:6px;border-radius:6px;transition:background .15s}
+  .topbar-toggle:hover{background:#f0f4ff}
+  .topbar-title{font-size:16px;font-weight:700;letter-spacing:.04em;color:#1a1a2e;flex:1;text-align:center}
+
+  /* ── Content ── */
+  .content{display:flex;flex:1;overflow:hidden}
+
+  /* ── Filters Panel ── */
+  .filters-panel{width:220px;min-width:220px;background:#fff;border-right:1px solid #e8eaf0;padding:20px 16px;overflow-y:auto;transition:width .25s}
+  .filters-panel.collapsed{width:40px;min-width:40px;padding:12px 0;overflow:hidden}
+  .filter-toggle-btn{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;cursor:pointer;color:#888;font-size:12px;gap:4px}
+  .filter-toggle-btn:hover{color:#1a56db}
+  .filters-panel.collapsed .filter-toggle-btn{justify-content:center;margin-bottom:0;padding:8px 0}
+  .filter-section{margin-bottom:22px}
+  .filter-label{font-size:12px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+  .filter-search{width:100%;border:1px solid #dde1ea;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;outline:none;transition:border .15s}
+  .filter-search:focus{border-color:#1a56db}
+  .filter-options{max-height:160px;overflow-y:auto;border:1px solid #dde1ea;border-radius:6px}
+  .filter-option{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:13px;transition:background .12s;border-bottom:1px solid #f0f2f7}
+  .filter-option:last-child{border-bottom:none}
+  .filter-option:hover{background:#f4f6ff}
+  .filter-option input[type=checkbox]{accent-color:#1a56db;width:14px;height:14px}
+  .filter-option.selected{background:#eef2ff}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .tag{background:#eef2ff;color:#1a56db;border-radius:20px;padding:3px 10px;font-size:11.5px;display:flex;align-items:center;gap:5px}
+  .tag .tag-x{cursor:pointer;opacity:.6;font-size:13px;line-height:1}
+  .tag .tag-x:hover{opacity:1}
+  .date-input{width:100%;border:1px solid #dde1ea;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;transition:border .15s;margin-bottom:6px}
+  .date-input:focus{border-color:#1a56db}
+  .apply-btn{width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s;margin-top:4px}
+  .apply-btn:hover{background:#1447c0}
+  .filters-panel.collapsed .filter-section,.filters-panel.collapsed .filter-toggle-btn span,.filters-panel.collapsed .apply-btn{display:none}
+
+  /* ── Dashboard ── */
+  .dashboard{flex:1;overflow-y:auto;padding:24px}
+  .section-title{font-size:17px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #1a56db;padding-bottom:6px;margin-bottom:16px;display:inline-block}
+  .section-note{font-size:11.5px;color:#aaa;font-style:italic;margin-top:8px;margin-bottom:18px}
+
+  /* ── Table ── */
+  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid #e8eaf0;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+  thead tr{background:#f0f4ff}
+  th{padding:10px 14px;text-align:left;font-weight:600;color:#444;border-bottom:1px solid #e0e4f0;font-size:12px}
+  td{padding:9px 14px;border-bottom:1px solid #f0f2f7;color:#333}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafbff}
+  .badge-country{background:#e3f2fd;color:#1565c0;border-radius:4px;padding:2px 8px;font-size:11.5px;font-weight:600}
+  .no-data{text-align:center;padding:28px;color:#bbb;font-size:13px}
+
+  /* ── Charts ── */
+  .charts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px;margin-top:8px}
+  .chart-card{background:#fff;border-radius:12px;border:1px solid #e8eaf0;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .chart-card h4{font-size:13px;font-weight:700;color:#444;margin-bottom:14px}
+  .chart-card canvas{max-height:200px}
+
+  /* ── Metric Cards ── */
+  .metrics-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+  .metric-card{background:#fff;border-radius:10px;border:1px solid #e8eaf0;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .metric-card .label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+  .metric-card .value{font-size:22px;font-weight:700;color:#1a1a2e}
+  .metric-card .sub{font-size:11.5px;color:#aaa;margin-top:2px}
+  .metric-card .up{color:#22c55e}.metric-card .down{color:#ef4444}
+
+  /* period label */
+  .period-label{background:#eef2ff;border-radius:6px;padding:4px 12px;font-size:12px;color:#1a56db;font-weight:600;display:inline-block;margin-bottom:18px}
+
+  /* ── Period Dropdown ── */
+  .period-dropdown-wrap{position:relative}
+  .period-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1.5px solid #c7d2fe;border-radius:8px;background:#eef2ff;color:#555;font-size:13px;cursor:pointer;transition:border .15s}
+  .period-trigger:hover{border-color:#1a56db}
+  .period-trigger svg{flex-shrink:0;transition:transform .2s}
+  .period-dropdown-wrap.open .period-trigger svg{transform:rotate(180deg)}
+  .period-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid #e0e4f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:100;padding:6px 0}
+  .period-dropdown-wrap.open .period-menu{display:block}
+  .period-option{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;color:#333;cursor:pointer;transition:background .12s}
+  .period-option:hover{background:#f4f6ff}
+  .period-option input[type=radio]{accent-color:#1a56db;width:14px;height:14px;flex-shrink:0}
+  .period-option.selected{color:#1a56db;font-weight:600}
+
+  /* responsive */
+  @media(max-width:768px){
+    .filters-panel{width:100%;min-width:unset;border-right:none;border-bottom:1px solid #e8eaf0}
+    .content{flex-direction:column}
+    .charts-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2.2" style="vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+    <span>Marketing Portal</span>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span>My Tasks</span>
+      <svg class="nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="nav-group open" id="inflGroup">
+      <div class="nav-item active" onclick="toggleGroup('inflGroup')">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>Influencer Manage…</span>
+        <svg class="nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="nav-children nav-sub">
+        <div class="nav-item">Influencers</div>
+        <div class="nav-item">Influencer Payments</div>
+        <div class="nav-item">Payment Calendar</div>
+        <div class="nav-item active">Influencer Performanc…</div>
+      </div>
+    </div>
+    <div class="nav-group" id="campGroup">
+      <div class="nav-item" onclick="toggleGroup('campGroup')">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3z"/><path d="M3 10h18v4H3z"/><path d="M3 17h18v4H3z"/></svg>
+        <span>Campaign Manage…</span>
+        <svg class="nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="nav-children nav-sub">
+        <div class="nav-item">Campaigns</div>
+        <div class="nav-item">Campaign Analytics</div>
+      </div>
+    </div>
+    <div class="nav-group" id="payGroup">
+      <div class="nav-item" onclick="toggleGroup('payGroup')">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        <span>Payment Managem…</span>
+        <svg class="nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="nav-children nav-sub">
+        <div class="nav-item">Payments</div>
+      </div>
+    </div>
+    <div class="nav-group" id="trkGroup">
+      <div class="nav-item" onclick="toggleGroup('trkGroup')">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+        <span>Tracking Link</span>
+        <svg class="nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>
+    <div class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <span>Task Management</span>
+    </div>
+    <div class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      <span>Ads Library</span>
+    </div>
+  </nav>
+</aside>
+
+<!-- ── Main ── -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-toggle" onclick="toggleSidebar()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </div>
+    <div class="topbar-title">INFLUENCER PERFORMANCE CENTER</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#1a56db">N</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- ── Filters ── -->
+    <div class="filters-panel" id="filtersPanel">
+      <div class="filter-toggle-btn" onclick="toggleFilters()">
+        <span>Hide Filters</span>
+        <svg id="filterArrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-label">By Country</div>
+        <input class="filter-search" type="text" placeholder="Search country…" oninput="filterOptions('country',this.value)" />
+        <div class="filter-options" id="countryOptions"></div>
+        <div class="tags" id="countryTags"></div>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-label">By Influencer</div>
+        <input class="filter-search" type="text" placeholder="Search influencer…" oninput="filterOptions('influencer',this.value)" />
+        <div class="filter-options" id="influencerOptions"></div>
+        <div class="tags" id="influencerTags"></div>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-label">Period</div>
+        <div class="period-dropdown-wrap" id="periodDropdownWrap">
+          <button class="period-trigger" id="periodTrigger" onclick="togglePeriodDropdown()">
+            <span id="periodTriggerLabel">Select</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="period-menu" id="periodMenu">
+            <label class="period-option" onclick="selectPeriod('prev_month')">
+              <input type="radio" name="period" value="prev_month" /> Previous Month
+            </label>
+            <label class="period-option" onclick="selectPeriod('curr_month')">
+              <input type="radio" name="period" value="curr_month" /> Current Month
+            </label>
+            <label class="period-option" onclick="selectPeriod('ytd')">
+              <input type="radio" name="period" value="ytd" /> Year to date
+            </label>
+            <label class="period-option" onclick="selectPeriod('custom')">
+              <input type="radio" name="period" value="custom" /> Custom date
+            </label>
+            <div id="customDateFields" style="display:none;padding:4px 12px 8px 32px">
+              <div style="font-size:11.5px;color:#888;margin-bottom:3px">Start Date:</div>
+              <input class="date-input" type="date" id="dateFrom" style="margin-bottom:6px" />
+              <div style="font-size:11.5px;color:#888;margin-bottom:3px">End Date:</div>
+              <input class="date-input" type="date" id="dateTo" />
+            </div>
+            <label class="period-option" onclick="selectPeriod('all')">
+              <input type="radio" name="period" value="all" /> All time
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button class="apply-btn" onclick="applyFilters()">Apply Filters</button>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div class="dashboard" id="dashboard">
+      <div id="periodDisplay" class="period-label">Period: Jan 1 – Dec 31 2025</div>
+
+      <!-- Metric Cards -->
+      <div class="metrics-row" id="metricsRow"></div>
+
+      <!-- Performance by Country -->
+      <div id="countrySection">
+        <span class="section-title">Performance</span>
+        <p style="font-size:13px;font-weight:600;color:#555;margin:12px 0 6px">By Country</p>
+        <div class="table-wrap">
+          <table id="countryTable">
+            <thead>
+              <tr>
+                <th>Source</th><th>Signups</th><th>Ev Approv</th><th>Ev App Rate(%)</th>
+                <th>FTD</th><th>Conversion Rate(%)</th><th>Total Deposit (USD)</th>
+                <th>Total Withdrawl (USD)</th><th>Net Funding (USD)</th><th>Cost per Lead (USD)</th>
+              </tr>
+            </thead>
+            <tbody id="countryTbody"></tbody>
+          </table>
+        </div>
+        <p class="section-note">This data here should be pulled by Influencer IB registered in the IF Portal, not tracking links</p>
+      </div>
+
+      <!-- Performance by Influencer -->
+      <div id="influencerSection" style="margin-top:8px">
+        <p style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px">By Influencer</p>
+        <div class="table-wrap">
+          <table id="influencerTable">
+            <thead>
+              <tr>
+                <th>Source</th><th>Signups</th><th>Ev Approv</th><th>Ev App Rate(%)</th>
+                <th>FTD</th><th>Conversion Rate(%)</th><th>Total Deposit (USD)</th>
+                <th>Total Withdrawl (USD)</th><th>Net Funding (USD)</th><th>Cost per Lead (USD)</th>
+              </tr>
+            </thead>
+            <tbody id="influencerTbody"></tbody>
+          </table>
+        </div>
+        <p class="section-note">This data here should be pulled by Influencer IB registered in the IF Portal, not tracking links</p>
+      </div>
+
+      <!-- Campaign Performance -->
+      <div style="margin-top:20px">
+        <span class="section-title">Campaign Performance</span>
+        <div class="table-wrap" style="margin-top:12px">
+          <table id="campaignTable">
+            <thead>
+              <tr>
+                <th>Campaign Name</th><th>Signups</th><th>Ev Approv</th><th>Ev App Rate(%)</th>
+                <th>FTD</th><th>Conversion Rate(%)</th><th>Total Deposit (USD)</th>
+                <th>Total Withdrawl (USD)</th><th>Net Funding (USD)</th>
+              </tr>
+            </thead>
+            <tbody id="campaignTbody"></tbody>
+          </table>
+        </div>
+        <p class="section-note">This data here should be pulled by Influencer tracking Links Only</p>
+      </div>
+
+      <!-- Charts -->
+      <div style="margin-top:24px">
+        <span class="section-title">Charts</span>
+        <p style="font-size:12px;color:#aaa;font-style:italic;margin:6px 0 16px">Charts reflect the data selected by the filters</p>
+        <div class="charts-grid" id="chartsGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Mock Data ──
+const RAW = {
+  countryRows: [
+    {source:'BRAZIL', signups:1000, evApprov:500, ftd:400, deposit:10000, withdrawl:1000},
+    {source:'LATAM',  signups:1000, evApprov:500, ftd:400, deposit:10000, withdrawl:1000},
+    {source:'EUROPE', signups:900,  evApprov:450, ftd:360, deposit:9500,  withdrawl:950},
+  ],
+  influencers: [
+    {id:'BR-JF Thomas', country:'BRAZIL', signups:400, evApprov:200, ftd:160, deposit:4200, withdrawl:400},
+    {id:'BR-Carlos',    country:'BRAZIL', signups:300, evApprov:150, ftd:120, deposit:3100, withdrawl:300},
+    {id:'LATAM-Maria',  country:'LATAM',  signups:350, evApprov:175, ftd:140, deposit:3500, withdrawl:350},
+    {id:'LATAM-Diego',  country:'LATAM',  signups:320, evApprov:160, ftd:128, deposit:3200, withdrawl:320},
+    {id:'EU-Sophie',    country:'EUROPE', signups:280, evApprov:140, ftd:112, deposit:3000, withdrawl:280},
+    {id:'EU-Marco',     country:'EUROPE', signups:260, evApprov:130, ftd:104, deposit:2800, withdrawl:260},
+  ],
+  campaigns: [
+    {name:'Deposit Bonus',         signups:1000, evApprov:500, ftd:400, deposit:10000, withdrawl:1000},
+    {name:'BlackArrow 3 months free',signups:1000,evApprov:500, ftd:400, deposit:10000, withdrawl:1000},
+    {name:'Summer Promo',          signups:750,  evApprov:375, ftd:300, deposit:8500,  withdrawl:850},
+    {name:'Refer & Earn',          signups:600,  evApprov:300, ftd:240, deposit:7000,  withdrawl:700},
+    {name:'VIP Launch',            signups:450,  evApprov:225, ftd:180, deposit:5500,  withdrawl:550},
+  ]
+};
+
+// ── State ──
+let selectedCountries = new Set(['BRAZIL','LATAM','EUROPE']);
+let selectedInfluencers = new Set(['BR-JF Thomas']);
+let chartInstances = {};
+
+const COUNTRIES = [...new Set(RAW.countryRows.map(r => r.source))];
+const INFLUENCER_IDS = RAW.influencers.map(r => r.id);
+
+function derive(row) {
+  const evRate = row.signups ? ((row.evApprov/row.signups)*100).toFixed(0)+'%' : '-';
+  const convRate = row.signups ? ((row.ftd/row.signups)*100).toFixed(0)+'%' : '-';
+  const net = row.deposit - row.withdrawl;
+  const cpl = row.ftd ? (row.deposit/row.ftd).toFixed(2) : '-';
+  return {...row, evRate, convRate, net, cpl};
+}
+
+function fmt(n){ return typeof n==='number'?n.toLocaleString():n; }
+
+// ── Render helpers ──
+function renderCountryTable(rows) {
+  const tbody = document.getElementById('countryTbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="10" class="no-data">No data for selected filters</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    const d = derive(r);
+    return `<tr>
+      <td><span class="badge-country">${d.source}</span></td>
+      <td>${fmt(d.signups)}</td><td>${fmt(d.evApprov)}</td><td>${d.evRate}</td>
+      <td>${fmt(d.ftd)}</td><td>${d.convRate}</td><td>$${fmt(d.deposit)}</td>
+      <td>$${fmt(d.withdrawl)}</td><td>$${fmt(d.net)}</td><td>$${d.cpl}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderInfluencerTable(rows) {
+  const tbody = document.getElementById('influencerTbody');
+  if (!rows.length) { tbody.innerHTML='<tr><td colspan="10" class="no-data">No influencers selected or no data</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    const d = derive(r);
+    return `<tr>
+      <td><strong>${d.id}</strong></td>
+      <td>${fmt(d.signups)}</td><td>${fmt(d.evApprov)}</td><td>${d.evRate}</td>
+      <td>${fmt(d.ftd)}</td><td>${d.convRate}</td><td>$${fmt(d.deposit)}</td>
+      <td>$${fmt(d.withdrawl)}</td><td>$${fmt(d.net)}</td><td>$${d.cpl}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCampaignTable(rows) {
+  const tbody = document.getElementById('campaignTbody');
+  tbody.innerHTML = rows.map(r => {
+    const d = derive(r);
+    return `<tr>
+      <td><strong>${d.name}</strong></td>
+      <td>${fmt(d.signups)}</td><td>${fmt(d.evApprov)}</td><td>${d.evRate}</td>
+      <td>${fmt(d.ftd)}</td><td>${d.convRate}</td><td>$${fmt(d.deposit)}</td>
+      <td>$${fmt(d.withdrawl)}</td><td>$${fmt(d.net)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMetrics(countryRows) {
+  const totals = countryRows.reduce((acc,r)=>({
+    signups: acc.signups+r.signups,
+    evApprov: acc.evApprov+r.evApprov,
+    ftd: acc.ftd+r.ftd,
+    deposit: acc.deposit+r.deposit,
+    withdrawl: acc.withdrawl+r.withdrawl,
+  }),{signups:0,evApprov:0,ftd:0,deposit:0,withdrawl:0});
+  const net = totals.deposit - totals.withdrawl;
+  const cpl = totals.ftd ? (totals.deposit/totals.ftd).toFixed(2) : '-';
+  const convRate = totals.signups ? ((totals.ftd/totals.signups)*100).toFixed(1) : 0;
+  const evRate = totals.signups ? ((totals.evApprov/totals.signups)*100).toFixed(1) : 0;
+
+  const cards = [
+    {label:'Total Signups',    value:fmt(totals.signups),    sub:'All selected countries'},
+    {label:'Ev Approved',      value:fmt(totals.evApprov),   sub:`Ev Rate: ${evRate}%`},
+    {label:'FTD',              value:fmt(totals.ftd),        sub:`Conv Rate: ${convRate}%`},
+    {label:'Total Deposit',    value:`$${fmt(totals.deposit)}`,  sub:'USD'},
+    {label:'Total Withdrawl',  value:`$${fmt(totals.withdrawl)}`,sub:'USD'},
+    {label:'Net Funding',      value:`$${fmt(net)}`,         sub:'USD', cls: net>=0?'up':'down'},
+    {label:'Cost per Lead',    value:`$${cpl}`,              sub:'Per FTD'},
+  ];
+  document.getElementById('metricsRow').innerHTML = cards.map(c=>`
+    <div class="metric-card">
+      <div class="label">${c.label}</div>
+      <div class="value ${c.cls||''}">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+// ── Charts ──
+const MERGED_CHARTS = [
+  {
+    id: 'ch_funnel',
+    title: 'Acquisition Funnel',
+    subtitle: 'Signups · Ev Approved · FTD',
+    fields: [
+      {key:'signups',  label:'Signups',      color:'#1a56db'},
+      {key:'evApprov', label:'Ev Approved',   color:'#7c3aed'},
+      {key:'ftd',      label:'FTD',           color:'#0ea5e9'},
+    ]
+  },
+  {
+    id: 'ch_rates',
+    title: 'Conversion Rates (%)',
+    subtitle: 'Ev App Rate · Conversion Rate',
+    isRate: true,
+    fields: [
+      {key:'evRate',   label:'Ev App Rate %',    color:'#f59e0b'},
+      {key:'convRate', label:'Conversion Rate %', color:'#16a34a'},
+    ]
+  },
+  {
+    id: 'ch_financials',
+    title: 'Financials (USD)',
+    subtitle: 'Total Deposit · Total WDL · Net Funding',
+    fields: [
+      {key:'deposit',   label:'Total Deposit',  color:'#1a56db'},
+      {key:'withdrawl', label:'Total WDL',       color:'#ef4444'},
+      {key:'net',       label:'Net Funding',     color:'#22c55e'},
+    ]
+  },
+];
+
+function renderCharts(rows) {
+  const grid = document.getElementById('chartsGrid');
+  grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(420px, 1fr))';
+  grid.innerHTML = MERGED_CHARTS.map(c=>`
+    <div class="chart-card">
+      <h4>${c.title} <span style="font-weight:400;color:#aaa;font-size:11px;margin-left:6px">${c.subtitle}</span></h4>
+      <canvas id="${c.id}" style="max-height:240px"></canvas>
+    </div>`).join('');
+
+  const labels = rows.map(r => r.source || r.id || r.name);
+
+  MERGED_CHARTS.forEach(def => {
+    const ctx = document.getElementById(def.id).getContext('2d');
+    if (chartInstances[def.id]) chartInstances[def.id].destroy();
+
+    const datasets = def.fields.map(f => ({
+      label: f.label,
+      data: rows.map(r => {
+        if (f.key === 'net') return r.deposit - r.withdrawl;
+        if (f.key === 'evRate')   return r.signups ? +((r.evApprov / r.signups) * 100).toFixed(1) : 0;
+        if (f.key === 'convRate') return r.signups ? +((r.ftd / r.signups) * 100).toFixed(1) : 0;
+        return r[f.key] ?? 0;
+      }),
+      backgroundColor: f.color + 'bb',
+      borderColor: f.color,
+      borderWidth: 2,
+      borderRadius: 5,
+    }));
+
+    chartInstances[def.id] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12, padding: 14 } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+          y: {
+            ticks: { font: { size: 11 } },
+            grid: { color: '#f0f2f7' },
+            ...(def.isRate ? { suggestedMax: 100 } : {})
+          }
+        }
+      }
+    });
+  });
+}
+
+// ── Apply Filters ──
+function applyFilters() {
+  const [from, to] = getPeriodRange();
+
+  const countryRows = RAW.countryRows.filter(r=>
+    selectedCountries.size===0 || selectedCountries.has(r.source)
+  );
+  const infRows = RAW.influencers.filter(r=>
+    selectedInfluencers.has(r.id)
+  );
+  const campRows = RAW.campaigns;
+
+  // update period label
+  const fmt2 = s=>{ if(!s||s==='All time')return s||''; const d=new Date(s); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+  const labels = {prev_month:'Previous Month', curr_month:'Current Month', ytd:'Year to date', all:'All time'};
+  const periodText = labels[selectedPeriod] || `${fmt2(from)} – ${fmt2(to)}`;
+  document.getElementById('periodDisplay').textContent = `Period: ${periodText}`;
+
+  renderMetrics(countryRows);
+  renderCountryTable(countryRows);
+  renderInfluencerTable(infRows);
+  renderCampaignTable(campRows);
+
+  // charts use country view
+  renderCharts(countryRows.length ? countryRows : RAW.countryRows);
+}
+
+// ── Filter Option Builders ──
+function buildOptions(type, items, selectedSet, containerId, tagsId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = items.map(item => `
+    <label class="filter-option ${selectedSet.has(item)?'selected':''}" data-value="${item}">
+      <input type="checkbox" ${selectedSet.has(item)?'checked':''} onchange="toggleSelection('${type}','${item}','${containerId}','${tagsId}')" />
+      ${item}
+    </label>`).join('');
+  renderTags(selectedSet, tagsId, type);
+}
+
+function toggleSelection(type, value, containerId, tagsId) {
+  const set = type==='country' ? selectedCountries : selectedInfluencers;
+  if(set.has(value)) set.delete(value); else set.add(value);
+  const el = document.querySelector(`#${containerId} [data-value="${value}"]`);
+  if(el) el.classList.toggle('selected', set.has(value));
+  renderTags(set, tagsId, type);
+}
+
+function renderTags(set, tagsId, type) {
+  document.getElementById(tagsId).innerHTML = [...set].map(v=>`
+    <span class="tag">${v}<span class="tag-x" onclick="removeTag('${type}','${v}')">×</span></span>`).join('');
+}
+
+function removeTag(type, value) {
+  const set = type==='country' ? selectedCountries : selectedInfluencers;
+  set.delete(value);
+  const cId = type==='country' ? 'countryOptions' : 'influencerOptions';
+  const tId = type==='country' ? 'countryTags'    : 'influencerTags';
+  const items = type==='country' ? COUNTRIES : INFLUENCER_IDS;
+  buildOptions(type, items, set, cId, tId);
+}
+
+function filterOptions(type, query) {
+  const set   = type==='country' ? selectedCountries : selectedInfluencers;
+  const items = type==='country' ? COUNTRIES : INFLUENCER_IDS;
+  const cId   = type==='country' ? 'countryOptions' : 'influencerOptions';
+  const tId   = type==='country' ? 'countryTags'    : 'influencerTags';
+  const filtered = query ? items.filter(i=>i.toLowerCase().includes(query.toLowerCase())) : items;
+  buildOptions(type, filtered, set, cId, tId);
+}
+
+// ── Period Dropdown ──
+let selectedPeriod = 'all';
+
+function togglePeriodDropdown() {
+  const wrap = document.getElementById('periodDropdownWrap');
+  const isOpen = wrap.classList.toggle('open');
+  if (isOpen) {
+    setTimeout(() => document.addEventListener('click', closePeriodOnOutside), 0);
+  }
+}
+function closePeriodOnOutside(e) {
+  const wrap = document.getElementById('periodDropdownWrap');
+  if (!wrap.contains(e.target)) {
+    wrap.classList.remove('open');
+    document.removeEventListener('click', closePeriodOnOutside);
+  }
+}
+function selectPeriod(val) {
+  selectedPeriod = val;
+  // tick the radio
+  const radio = document.querySelector(`input[name=period][value="${val}"]`);
+  if (radio) radio.checked = true;
+  // highlight row
+  document.querySelectorAll('.period-option').forEach(el => el.classList.remove('selected'));
+  if (radio) radio.closest('.period-option').classList.add('selected');
+  // show/hide custom fields
+  document.getElementById('customDateFields').style.display = val === 'custom' ? 'block' : 'none';
+  // update trigger label
+  const labels = {prev_month:'Previous Month', curr_month:'Current Month', ytd:'Year to date', custom:'Custom date', all:'All time'};
+  document.getElementById('periodTriggerLabel').textContent = labels[val] || 'Select';
+  // close dropdown unless custom (user needs to fill dates)
+  if (val !== 'custom') {
+    document.getElementById('periodDropdownWrap').classList.remove('open');
+    document.removeEventListener('click', closePeriodOnOutside);
+  }
+}
+
+function getPeriodRange() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if (selectedPeriod === 'prev_month') {
+    const start = new Date(y, m-1, 1), end = new Date(y, m, 0);
+    return [fmt(start), fmt(end)];
+  }
+  if (selectedPeriod === 'curr_month') {
+    const start = new Date(y, m, 1), end = new Date(y, m+1, 0);
+    return [fmt(start), fmt(end)];
+  }
+  if (selectedPeriod === 'ytd') {
+    return [`${y}-01-01`, fmt(now)];
+  }
+  if (selectedPeriod === 'custom') {
+    return [document.getElementById('dateFrom').value, document.getElementById('dateTo').value];
+  }
+  return ['All time', 'All time'];
+}
+
+// ── Sidebar / Filter toggles ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+function toggleFilters() {
+  const p = document.getElementById('filtersPanel');
+  p.classList.toggle('collapsed');
+  const arrow = document.getElementById('filterArrow');
+  if(p.classList.contains('collapsed')){
+    arrow.style.transform='rotate(180deg)';
+  } else {
+    arrow.style.transform='';
+  }
+}
+function toggleGroup(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ── Init ──
+buildOptions('country',     COUNTRIES,      selectedCountries,   'countryOptions',     'countryTags');
+buildOptions('influencer',  INFLUENCER_IDS, selectedInfluencers, 'influencerOptions',  'influencerTags');
+applyFilters();
+</script>
+</body>
+</html>
