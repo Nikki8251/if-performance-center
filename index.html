@@ -353,11 +353,16 @@ const RAW = {
 
 // ── State ──
 let selectedCountries = new Set(['BRAZIL','LATAM','EUROPE']);
-let selectedInfluencers = new Set(['BR-JF Thomas']);
+let selectedInfluencers = new Set(); // empty = "all influencers in selected countries"
 let chartInstances = {};
 
 const COUNTRIES = [...new Set(RAW.countryRows.map(r => r.source))];
-const INFLUENCER_IDS = RAW.influencers.map(r => r.id);
+
+// Returns influencers available under currently selected countries
+function availableInfluencers() {
+  if (selectedCountries.size === 0) return RAW.influencers.map(r => r.id);
+  return RAW.influencers.filter(r => selectedCountries.has(r.country)).map(r => r.id);
+}
 
 function derive(row) {
   const evRate = row.signups ? ((row.evApprov/row.signups)*100).toFixed(0)+'%' : '-';
@@ -530,69 +535,97 @@ function renderCharts(rows) {
 function applyFilters() {
   const [from, to] = getPeriodRange();
 
-  const countryRows = RAW.countryRows.filter(r=>
-    selectedCountries.size===0 || selectedCountries.has(r.source)
+  // Country rows filtered by selected countries
+  const countryRows = RAW.countryRows.filter(r =>
+    selectedCountries.size === 0 || selectedCountries.has(r.source)
   );
-  const infRows = RAW.influencers.filter(r=>
-    selectedInfluencers.has(r.id)
-  );
+
+  // Influencer rows: if specific influencers chosen, use those; else all in selected countries
+  const infRows = selectedInfluencers.size > 0
+    ? RAW.influencers.filter(r => selectedInfluencers.has(r.id))
+    : RAW.influencers.filter(r => selectedCountries.size === 0 || selectedCountries.has(r.country));
+
   const campRows = RAW.campaigns;
 
-  // update period label
-  const fmt2 = s=>{ if(!s||s==='All time')return s||''; const d=new Date(s); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
-  const labels = {prev_month:'Previous Month', curr_month:'Current Month', ytd:'Year to date', all:'All time'};
-  const periodText = labels[selectedPeriod] || `${fmt2(from)} – ${fmt2(to)}`;
-  document.getElementById('periodDisplay').textContent = `Period: ${periodText}`;
+  const fmt2 = s => { if (!s || s === 'All time') return s || ''; const d = new Date(s); return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); };
+  const periodLabels = {prev_month:'Previous Month', curr_month:'Current Month', ytd:'Year to date', all:'All time'};
+  document.getElementById('periodDisplay').textContent = `Period: ${periodLabels[selectedPeriod] || `${fmt2(from)} – ${fmt2(to)}`}`;
 
   renderMetrics(countryRows);
   renderCountryTable(countryRows);
   renderInfluencerTable(infRows);
   renderCampaignTable(campRows);
-
-  // charts use country view
   renderCharts(countryRows.length ? countryRows : RAW.countryRows);
 }
 
 // ── Filter Option Builders ──
-function buildOptions(type, items, selectedSet, containerId, tagsId) {
-  const container = document.getElementById(containerId);
+function buildCountryOptions(query = '') {
+  const container = document.getElementById('countryOptions');
+  const items = query ? COUNTRIES.filter(i => i.toLowerCase().includes(query.toLowerCase())) : COUNTRIES;
   container.innerHTML = items.map(item => `
-    <label class="filter-option ${selectedSet.has(item)?'selected':''}" data-value="${item}">
-      <input type="checkbox" ${selectedSet.has(item)?'checked':''} onchange="toggleSelection('${type}','${item}','${containerId}','${tagsId}')" />
+    <label class="filter-option ${selectedCountries.has(item) ? 'selected' : ''}" data-value="${item}">
+      <input type="checkbox" ${selectedCountries.has(item) ? 'checked' : ''} onchange="toggleCountry('${item}')" />
       ${item}
     </label>`).join('');
-  renderTags(selectedSet, tagsId, type);
+  renderTags(selectedCountries, 'countryTags', 'country');
 }
 
-function toggleSelection(type, value, containerId, tagsId) {
-  const set = type==='country' ? selectedCountries : selectedInfluencers;
-  if(set.has(value)) set.delete(value); else set.add(value);
-  const el = document.querySelector(`#${containerId} [data-value="${value}"]`);
-  if(el) el.classList.toggle('selected', set.has(value));
-  renderTags(set, tagsId, type);
+function toggleCountry(value) {
+  if (selectedCountries.has(value)) selectedCountries.delete(value);
+  else selectedCountries.add(value);
+  // Remove influencers that no longer belong to any selected country
+  const avail = new Set(availableInfluencers());
+  selectedInfluencers.forEach(id => { if (!avail.has(id)) selectedInfluencers.delete(id); });
+  buildCountryOptions();
+  buildInfluencerOptions();
+}
+
+function buildInfluencerOptions(query = '') {
+  const container = document.getElementById('influencerOptions');
+  const avail = availableInfluencers();
+  const items = query ? avail.filter(i => i.toLowerCase().includes(query.toLowerCase())) : avail;
+  const allSelected = items.length > 0 && items.every(i => selectedInfluencers.has(i));
+
+  container.innerHTML =
+    `<label class="filter-option ${allSelected ? 'selected' : ''}" data-value="__all__">
+      <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleSelectAll()" />
+      <em>Select All</em>
+    </label>` +
+    items.map(item => `
+    <label class="filter-option ${selectedInfluencers.has(item) ? 'selected' : ''}" data-value="${item}">
+      <input type="checkbox" ${selectedInfluencers.has(item) ? 'checked' : ''} onchange="toggleInfluencer('${item}')" />
+      ${item}
+    </label>`).join('');
+  renderTags(selectedInfluencers, 'influencerTags', 'influencer');
+}
+
+function toggleSelectAll() {
+  const avail = availableInfluencers();
+  const allSelected = avail.every(i => selectedInfluencers.has(i));
+  if (allSelected) avail.forEach(i => selectedInfluencers.delete(i));
+  else avail.forEach(i => selectedInfluencers.add(i));
+  buildInfluencerOptions();
+}
+
+function toggleInfluencer(value) {
+  if (selectedInfluencers.has(value)) selectedInfluencers.delete(value);
+  else selectedInfluencers.add(value);
+  buildInfluencerOptions();
 }
 
 function renderTags(set, tagsId, type) {
-  document.getElementById(tagsId).innerHTML = [...set].map(v=>`
+  document.getElementById(tagsId).innerHTML = [...set].map(v => `
     <span class="tag">${v}<span class="tag-x" onclick="removeTag('${type}','${v}')">×</span></span>`).join('');
 }
 
 function removeTag(type, value) {
-  const set = type==='country' ? selectedCountries : selectedInfluencers;
-  set.delete(value);
-  const cId = type==='country' ? 'countryOptions' : 'influencerOptions';
-  const tId = type==='country' ? 'countryTags'    : 'influencerTags';
-  const items = type==='country' ? COUNTRIES : INFLUENCER_IDS;
-  buildOptions(type, items, set, cId, tId);
+  if (type === 'country') { selectedCountries.delete(value); buildCountryOptions(); buildInfluencerOptions(); }
+  else { selectedInfluencers.delete(value); buildInfluencerOptions(); }
 }
 
 function filterOptions(type, query) {
-  const set   = type==='country' ? selectedCountries : selectedInfluencers;
-  const items = type==='country' ? COUNTRIES : INFLUENCER_IDS;
-  const cId   = type==='country' ? 'countryOptions' : 'influencerOptions';
-  const tId   = type==='country' ? 'countryTags'    : 'influencerTags';
-  const filtered = query ? items.filter(i=>i.toLowerCase().includes(query.toLowerCase())) : items;
-  buildOptions(type, filtered, set, cId, tId);
+  if (type === 'country') buildCountryOptions(query);
+  else buildInfluencerOptions(query);
 }
 
 // ── Period Dropdown ──
@@ -673,8 +706,8 @@ function toggleGroup(id) {
 }
 
 // ── Init ──
-buildOptions('country',     COUNTRIES,      selectedCountries,   'countryOptions',     'countryTags');
-buildOptions('influencer',  INFLUENCER_IDS, selectedInfluencers, 'influencerOptions',  'influencerTags');
+buildCountryOptions();
+buildInfluencerOptions();
 applyFilters();
 </script>
 </body>
